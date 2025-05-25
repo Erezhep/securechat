@@ -57,7 +57,7 @@
           overflow-y: auto;
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 2px;
           scroll-behavior: smooth;
           scrollbar-width: thin;
           scrollbar-color: rgba(0,0,0,0.1) transparent;
@@ -71,52 +71,59 @@
         }
         .message {
           max-width: 70%;
-          padding: 12px 16px;
-          border-radius: 20px;
-          font-size: 1rem;
-          line-height: 1.4;
+          padding: 8px 12px;
+          border-radius: 14px;
+          font-size: 0.95rem;
+          line-height: 1.35;
           position: relative;
           display: inline-block;
           word-wrap: break-word;
           white-space: pre-wrap;
           word-break: break-word;
-          box-shadow: 0 3px 6px rgba(0,0,0,0.08);
-          transition: background-color 0.3s ease;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
+          transition: background-color 0.25s ease;
         }
+
         .message.self {
           background-color: #dcf8c6;
           align-self: flex-end;
           border-bottom-right-radius: 6px;
           color: #202c33;
         }
+
         .message.self:hover {
-          background-color: #c7e9a7;
+           background-color: #cdebb3;
         }
+
         .message.other {
-          background-color: white;
-          align-self: flex-start;
-          border-bottom-left-radius: 6px;
-          color: #202c33;
+           background-color: #ffffff;
+           align-self: flex-start;
+           border-bottom-left-radius: 6px;
+           color: #202c33;
         }
+
         .message.other:hover {
-          background-color: #f1f0f0;
+           background-color: #f1f0f0;
         }
-        .message-header {
+
+       .message-header {
           display: flex;
           justify-content: space-between;
           font-weight: 600;
-          font-size: 0.85rem;
-          margin-bottom: 6px;
+          font-size: 0.8rem;
+          margin-bottom: 4px;
           color: #666;
           user-select: none;
           font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .message.self .message-header {
-          color: #4a7749;
-        }
+       }
+
+       .message.self .message-header {
+         color: #4a7749;
+       }
+
         .message-time {
           font-weight: 400;
-          font-size: 0.75rem;
+          font-size: 0.7rem;
           color: #999;
           margin-left: 8px;
           flex-shrink: 0;
