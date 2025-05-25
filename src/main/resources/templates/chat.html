@@ -213,6 +213,49 @@
 
       let stompClient = null;
 
+      // Функция для отображения сообщения в DOM (как было у тебя)
+      function showMessage(message) {
+        const messagesDiv = document.getElementById('messages');
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message');
+        if (message.sender === username) {
+          messageElement.classList.add('self');
+        } else {
+          messageElement.classList.add('other');
+        }
+
+        const dt = new Date(message.timestamp);
+        const time = dt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+        messageElement.innerHTML = `
+          <div class="message-header">
+            <span>${message.sender}</span>
+            <span class="message-time">${time}</span>
+          </div>
+          <div class="message-content">${message.content}</div>
+        `;
+        messagesDiv.appendChild(messageElement);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+
+      // Получаем последние 100 сообщений с API
+      async function loadLatestMessages() {
+        try {
+          const response = await fetch('/api/messages/latest');
+          if (!response.ok) throw new Error('Ошибка загрузки сообщений');
+          const messages = await response.json();
+          const messagesDiv = document.getElementById('messages');
+          messagesDiv.innerHTML = ''; // очищаем "Добро пожаловать"
+
+          messages.forEach(msg => showMessage(msg));
+        } catch (error) {
+          console.error('Ошибка при загрузке сообщений:', error);
+          // Можно вывести сообщение в чат о проблеме
+          const messagesDiv = document.getElementById('messages');
+          messagesDiv.innerHTML = `<p class="text-center text-danger">Не удалось загрузить сообщения.</p>`;
+        }
+      }
+
       function connect() {
         const socket = new SockJS('/chat-websocket');
         stompClient = Stomp.over(socket);
@@ -239,35 +282,9 @@
             content: text,
             timestamp: new Date().toISOString()
           };
-          // ВАЖНО: путь должен совпадать с @MessageMapping("/chat.send")
           stompClient.send("/app/chat.send", {}, JSON.stringify(chatMessage));
           input.value = '';
         }
-      }
-
-      function showMessage(message) {
-        const messagesDiv = document.getElementById('messages');
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message');
-        if (message.sender === username) {
-          messageElement.classList.add('self');
-        } else {
-          messageElement.classList.add('other');
-        }
-
-        // Форматируем время в 24-часовой, без секунд
-        const dt = new Date(message.timestamp);
-        const time = dt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false });
-
-        messageElement.innerHTML = `
-          <div class="message-header">
-            <span>${message.sender}</span>
-            <span class="message-time">${time}</span>
-          </div>
-          <div class="message-content">${message.content}</div>
-        `;
-        messagesDiv.appendChild(messageElement);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
       }
 
       document.getElementById('send-button').addEventListener('click', sendMessage);
@@ -277,7 +294,10 @@
         }
       });
 
-      connect();
+      // Сначала загружаем последние сообщения, потом подключаем WebSocket
+      loadLatestMessages().then(() => {
+        connect();
+      });
     /*]]>*/
 </script>
 </body>
