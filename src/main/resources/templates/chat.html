@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Чат</title>
+    <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 20px;
+          background-color: #f5f5f5;
+        }
+        #chat-container {
+          max-width: 600px;
+          margin: 0 auto;
+          background: white;
+          border-radius: 8px;
+          padding: 20px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        #messages {
+          height: 300px;
+          border: 1px solid #ccc;
+          padding: 10px;
+          overflow-y: auto;
+          margin-bottom: 10px;
+          background-color: #fafafa;
+        }
+        #input-area {
+          display: flex;
+        }
+        #message-input {
+          flex-grow: 1;
+          padding: 10px;
+          font-size: 1rem;
+          border-radius: 4px;
+          border: 1px solid #ccc;
+        }
+        #send-button {
+          padding: 10px 20px;
+          margin-left: 10px;
+          background-color: #007BFF;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        #send-button:hover {
+          background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+<div id="chat-container">
+    <p><a th:href="@{/logout}">Выйти</a></p>
+    <h2>Чат</h2>
+    <p>Вы вошли как <strong th:text="${session.user.username}">пользователь</strong></p>
+    <div id="messages">
+        <!-- Здесь будут появляться сообщения -->
+        <p>Добро пожаловать в чат!</p>
+    </div>
+    <div id="input-area">
+        <input type="text" id="message-input" placeholder="Введите сообщение..." disabled />
+        <button id="send-button" disabled>Отправить</button>
+    </div>
+</div>
+</body>
+</html>

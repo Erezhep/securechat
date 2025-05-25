@@ -72,19 +72,32 @@
     a:hover {
       text-decoration: underline;
     }
+
+    .error {
+      color: red;
+      font-size: 0.9rem;
+      margin-top: -0.5rem;
+      margin-bottom: 1rem;
+    }
   </style>
 </head>
 <body>
 <div class="register-container">
   <h2>Регистрация</h2>
-  <form th:action="@{/register}" method="post">
+  <form th:action="@{/register}" method="post" onsubmit="return validateForm()">
+    <div th:if="${error}" class="error" th:text="${error}"></div>
     <div>
       <label>Имя пользователя:</label>
-      <input type="text" name="username" />
+      <input type="text" name="username" required th:value="${userForm.username}" />
     </div>
     <div>
       <label>Пароль:</label>
-      <input type="password" name="password" />
+      <input type="password" id="password" name="password" required />
+    </div>
+    <div>
+      <label>Подтвердите пароль:</label>
+      <input type="password" id="confirmPassword" name="confirmPassword" required />
+      <div class="error" id="error-message"></div>
     </div>
     <div>
       <button type="submit">Зарегистрироваться</button>
@@ -92,5 +105,21 @@
   </form>
   <p>Уже есть аккаунт? <a th:href="@{/login}">Войти</a></p>
 </div>
+
+<script>
+  function validateForm() {
+    const password = document.getElementById('password').value;
+    const confirm = document.getElementById('confirmPassword').value;
+    const errorMessage = document.getElementById('error-message');
+
+    if (password !== confirm) {
+      errorMessage.textContent = "Пароли не совпадают.";
+      return false;
+    }
+
+    errorMessage.textContent = "";
+    return true;
+  }
+</script>
 </body>
 </html>
