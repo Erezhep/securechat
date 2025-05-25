@@ -62,10 +62,7 @@ public class AuthController {
 
     // ===== Чат и выход =====
     @GetMapping("/chat")
-    public String chatPage(HttpSession session){
-        if (session.getAttribute("user") == null){
-            return "redirect:/login";
-        }
+    public String chatPage(){
         return "chat";
     }
 

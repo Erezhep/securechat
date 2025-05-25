@@ -25,7 +25,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()  // всё остальное требует входа
                 )
                 .formLogin(form -> form
-                        .loginPage("/login")     // твоя страница login.html
+                        .loginPage("/login") // твоя страница login.html
+                                .defaultSuccessUrl("/chat", true)
                         .permitAll()
                         // по умолчанию Spring Security сам слушает POST /login
                 )

@@ -51,8 +51,8 @@
 <body>
 <div id="chat-container">
     <p><a th:href="@{/logout}">Выйти</a></p>
+    <p>Пользователь: <span th:text="${#authentication.name}"></span></p>
     <h2>Чат</h2>
-    <p>Вы вошли как <strong th:text="${session.user.username}">пользователь</strong></p>
     <div id="messages">
         <!-- Здесь будут появляться сообщения -->
         <p>Добро пожаловать в чат!</p>
