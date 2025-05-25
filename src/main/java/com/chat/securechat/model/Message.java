@@ -4,6 +4,7 @@ public class Message {
 
     private String sender;
     private String content;
+    private String timestamp;
 
     // Getter
     public String getSender() {
@@ -14,6 +15,10 @@ public class Message {
         return content;
     }
 
+    public String getTimestamp() {
+        return timestamp;
+    }
+
     // Setter
     public void setSender(String sender) {
         this.sender = sender;
@@ -21,5 +26,9 @@ public class Message {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public void setTimestamp(String timestamp) {
+        this.timestamp = timestamp;
     }
 }

@@ -31,6 +31,12 @@ public class ChatWebSocketController {
 
         messageRepository.save(messageEntity);
 
-        return messageDto;
+        // Создаём DTO на основе сохранённой сущности с правильным временем
+        Message responseDto = new Message();
+        responseDto.setSender(sender.getUsername());
+        responseDto.setContent(messageEntity.getContent());
+        responseDto.setTimestamp(messageEntity.getCreatedAt().toString()); // ISO строка
+
+        return responseDto;
     }
 }
