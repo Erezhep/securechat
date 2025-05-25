@@ -22,6 +22,7 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login", "/register", "/css/**", "/js/**").permitAll()  // разрешаем доступ
+                        .requestMatchers("/api/public-key").authenticated() // Нужно авторизация для получения доступа к аpi
                         .anyRequest().authenticated()  // всё остальное требует входа
                 )
                 .formLogin(form -> form
@@ -33,7 +34,9 @@ public class SecurityConfig {
                 .logout(logout -> logout
                         .logoutSuccessUrl("/login?logout")
                         .permitAll()
-                );
+                )
+                // Включаем httpBasic() правильно
+                .httpBasic(customizer -> {});
                 // .csrf(csrf -> csrf.disable()); // можно включить позже для защиты форм
 
         return http.build();

@@ -209,95 +209,215 @@
 
 <script th:inline="javascript">
     /*<![CDATA[*/
-      const username = /*[[${#authentication?.name} ?: 'Anonymous']]*/ 'Anonymous';
+    const username = /*[[${#authentication?.name} ?: 'Anonymous']]*/ 'Anonymous';
 
-      let stompClient = null;
+    let stompClient = null;
+    let encryptionKey = null; // CryptoKey для AES-GCM
 
-      // Функция для отображения сообщения в DOM (как было у тебя)
-      function showMessage(message) {
-        const messagesDiv = document.getElementById('messages');
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message');
-        if (message.sender === username) {
-          messageElement.classList.add('self');
-        } else {
-          messageElement.classList.add('other');
-        }
-
-        const dt = new Date(message.timestamp);
-        const time = dt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false });
-
-        messageElement.innerHTML = `
-          <div class="message-header">
-            <span>${message.sender}</span>
-            <span class="message-time">${time}</span>
-          </div>
-          <div class="message-content">${message.content}</div>
-        `;
-        messagesDiv.appendChild(messageElement);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-      }
-
-      // Получаем последние 100 сообщений с API
-      async function loadLatestMessages() {
-        try {
-          const response = await fetch('/api/messages/latest');
-          if (!response.ok) throw new Error('Ошибка загрузки сообщений');
-          const messages = await response.json();
-          const messagesDiv = document.getElementById('messages');
-          messagesDiv.innerHTML = ''; // очищаем "Добро пожаловать"
-
-          messages.forEach(msg => showMessage(msg));
-        } catch (error) {
-          console.error('Ошибка при загрузке сообщений:', error);
-          // Можно вывести сообщение в чат о проблеме
-          const messagesDiv = document.getElementById('messages');
-          messagesDiv.innerHTML = `<p class="text-center text-danger">Не удалось загрузить сообщения.</p>`;
-        }
-      }
-
-      function connect() {
-        const socket = new SockJS('/chat-websocket');
-        stompClient = Stomp.over(socket);
-        stompClient.connect({}, function (frame) {
-          console.log('Connected: ' + frame);
-
-          // разблокируем ввод
-          document.getElementById('message-input').disabled = false;
-          document.getElementById('send-button').disabled = false;
-
-          // подписка на общий топик
-          stompClient.subscribe('/topic/messages', function (messageOutput) {
-            showMessage(JSON.parse(messageOutput.body));
-          });
+    // Функция для получения ключа с API (строго авторизованный запрос)
+    async function fetchEncryptionKey() {
+      try {
+        const response = await fetch('/api/public-key', {
+          method: 'GET',
+          credentials: 'include', // чтобы отправлять куки с авторизацией
+          headers: {
+            'Accept': 'application/json'
+          }
         });
+        if (!response.ok) throw new Error('Не удалось получить ключ');
+        const data = await response.json();
+        // Ожидаем, что сервер возвращает base64 строку ключа, например: { key: "base64string" }
+        const rawKey = base64ToArrayBuffer(data.key);
+        encryptionKey = await crypto.subtle.importKey(
+          'raw',
+          rawKey,
+          'AES-GCM',
+          true,
+          ['encrypt', 'decrypt']
+        );
+        console.log('Ключ шифрования получен и импортирован');
+      } catch (e) {
+        console.error('Ошибка получения ключа:', e);
+        alert('Ошибка при получении ключа шифрования. Попробуйте позже.');
+      }
+    }
+
+    // Конверт base64 в ArrayBuffer
+    function base64ToArrayBuffer(base64) {
+      const binaryString = window.atob(base64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+
+    // Конверт ArrayBuffer в base64
+    function arrayBufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      for (let b of bytes) {
+        binary += String.fromCharCode(b);
+      }
+      return window.btoa(binary);
+    }
+
+    // AES-GCM шифрование
+    async function encryptMessage(plaintext) {
+      if (!encryptionKey) throw new Error('Ключ не загружен');
+
+      // Генерируем случайный IV 12 байт (96 бит)
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const encoder = new TextEncoder();
+      const encoded = encoder.encode(plaintext);
+
+      const ciphertext = await crypto.subtle.encrypt(
+        {
+          name: 'AES-GCM',
+          iv: iv
+        },
+        encryptionKey,
+        encoded
+      );
+
+      // Возвращаем base64 строку: IV + ciphertext (склеенные)
+      const combined = new Uint8Array(iv.byteLength + ciphertext.byteLength);
+      combined.set(iv, 0);
+      combined.set(new Uint8Array(ciphertext), iv.byteLength);
+
+      return arrayBufferToBase64(combined.buffer);
+    }
+
+    // AES-GCM дешифрование
+    async function decryptMessage(ciphertextBase64) {
+      if (!encryptionKey) throw new Error('Ключ не загружен');
+
+      const combined = base64ToArrayBuffer(ciphertextBase64);
+      const combinedBytes = new Uint8Array(combined);
+
+      // Разделяем IV и ciphertext
+      const iv = combinedBytes.slice(0, 12); // первые 12 байт
+      const data = combinedBytes.slice(12);
+
+      try {
+        const decrypted = await crypto.subtle.decrypt(
+          {
+            name: 'AES-GCM',
+            iv: iv
+          },
+          encryptionKey,
+          data
+        );
+        const decoder = new TextDecoder();
+        return decoder.decode(decrypted);
+      } catch (e) {
+        console.error('Ошибка дешифровки:', e);
+        return '[Ошибка дешифровки]';
+      }
+    }
+
+    // Функция отображения сообщения в DOM с дешифровкой
+    async function showMessage(message) {
+      const messagesDiv = document.getElementById('messages');
+      const messageElement = document.createElement('div');
+      messageElement.classList.add('message');
+      if (message.sender === username) {
+        messageElement.classList.add('self');
+      } else {
+        messageElement.classList.add('other');
       }
 
-      function sendMessage() {
-        const input = document.getElementById('message-input');
-        const text = input.value.trim();
-        if (text && stompClient) {
+      const dt = new Date(message.timestamp);
+      const time = dt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+      // Дешифруем content (если ключ есть), иначе показываем как есть (на всякий)
+      let decryptedContent = message.content;
+      if (encryptionKey) {
+        decryptedContent = await decryptMessage(message.content);
+      }
+
+      messageElement.innerHTML = `
+        <div class="message-header">
+          <span>${message.sender}</span>
+          <span class="message-time">${time}</span>
+        </div>
+        <div class="message-content">${decryptedContent}</div>
+      `;
+      messagesDiv.appendChild(messageElement);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Загрузка последних 100 сообщений
+    async function loadLatestMessages() {
+      try {
+        const response = await fetch('/api/messages/latest', {
+          credentials: 'include'
+        });
+        if (!response.ok) throw new Error('Ошибка загрузки сообщений');
+        const messages = await response.json();
+        const messagesDiv = document.getElementById('messages');
+        messagesDiv.innerHTML = ''; // очистка
+
+        for (const msg of messages) {
+          await showMessage(msg);
+        }
+      } catch (error) {
+        console.error('Ошибка при загрузке сообщений:', error);
+        const messagesDiv = document.getElementById('messages');
+        messagesDiv.innerHTML = `<p class="text-center text-danger">Не удалось загрузить сообщения.</p>`;
+      }
+    }
+
+    // Подключение WebSocket и подписка
+    function connect() {
+      const socket = new SockJS('/chat-websocket');
+      stompClient = Stomp.over(socket);
+      stompClient.connect({}, function (frame) {
+        console.log('Connected: ' + frame);
+
+        document.getElementById('message-input').disabled = false;
+        document.getElementById('send-button').disabled = false;
+
+        stompClient.subscribe('/topic/messages', async function (messageOutput) {
+          const msgObj = JSON.parse(messageOutput.body);
+          await showMessage(msgObj);
+        });
+      });
+    }
+
+    // Отправка зашифрованного сообщения
+    async function sendMessage() {
+      const input = document.getElementById('message-input');
+      const text = input.value.trim();
+      if (text && stompClient && encryptionKey) {
+        try {
+          const encryptedContent = await encryptMessage(text);
           const chatMessage = {
             sender: username,
-            content: text,
+            content: encryptedContent,
             timestamp: new Date().toISOString()
           };
           stompClient.send("/app/chat.send", {}, JSON.stringify(chatMessage));
           input.value = '';
+        } catch (e) {
+          alert('Ошибка шифрования сообщения');
+          console.error(e);
         }
       }
+    }
 
-      document.getElementById('send-button').addEventListener('click', sendMessage);
-      document.getElementById('message-input').addEventListener('keyup', function(event) {
-        if (event.key === 'Enter') {
-          sendMessage();
-        }
-      });
+    document.getElementById('send-button').addEventListener('click', sendMessage);
+    document.getElementById('message-input').addEventListener('keyup', function(event) {
+      if (event.key === 'Enter') {
+        sendMessage();
+      }
+    });
 
-      // Сначала загружаем последние сообщения, потом подключаем WebSocket
-      loadLatestMessages().then(() => {
-        connect();
-      });
+    // Сначала получаем ключ, потом последние сообщения и подключаем WebSocket
+    fetchEncryptionKey()
+      .then(() => loadLatestMessages())
+      .then(() => connect());
     /*]]>*/
 </script>
 </body>
